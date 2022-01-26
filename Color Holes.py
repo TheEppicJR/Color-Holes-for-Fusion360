@@ -172,7 +172,7 @@ def mk_color(rgb: rgbCl):
         newColor = design.appearances.addByCopy(yellowColor, rgb.name)
                     
         
-        _ui.messageBox(f"Hole Size: {newColor.appearanceProperties.itemByName('Image').isReadOnly}")
+        # _ui.messageBox(f"Hole Size: {newColor.appearanceProperties.itemByName('Image').isReadOnly}")
 
         # Change the color of the appearance to red.
         colorProp = adsk.core.ColorProperty.cast(newColor.appearanceProperties.itemByName('Color'))
