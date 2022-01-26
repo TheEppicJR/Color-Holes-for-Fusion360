@@ -1,0 +1,8 @@
+{
+	"python.autoComplete.extraPaths":	["C:/Users/ian/AppData/Roaming/Autodesk/Autodesk Fusion 360/API/Python/defs"],
+	"python.analysis.extraPaths":	["C:/Users/ian/AppData/Roaming/Autodesk/Autodesk Fusion 360/API/Python/defs"],
+	"python.pythonPath": "C:/Users/ian/AppData/Local/Autodesk/webdeploy/production/1a27f23c10bc87f7eab1f89e440a46f886b5f544/Python/python.exe",
+	"cSpell.words": [
+		"ircolor"
+	]
+}
