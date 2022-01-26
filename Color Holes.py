@@ -171,6 +171,9 @@ def mk_color(rgb: rgbCl):
         # Copy it to the design, giving it a new name.
         newColor = design.appearances.addByCopy(yellowColor, rgb.name)
                     
+        
+        _ui.messageBox(f"Hole Size: {newColor.appearanceProperties.itemByName('Image').isReadOnly}")
+
         # Change the color of the appearance to red.
         colorProp = adsk.core.ColorProperty.cast(newColor.appearanceProperties.itemByName('Color'))
         colorProp.value = adsk.core.Color.create(rgb.r, rgb.g, rgb.b, rgb.o)
@@ -189,6 +192,44 @@ def findNear(rad):
             posSizes.append(row[0])
     return posSizes
 
+def continuous_edges(edges):
+    firstLoopArr = []
+    secondLoopArr = []
+    useSecondLoop = False
+    for edge in edges:
+        if  edge in firstLoopArr or edge in secondLoopArr:
+            pass
+        elif len(firstLoopArr) == 0:
+            firstLoopArr.append(edge)
+            tempprofile = edge.tangentiallyConnectedEdges
+            startIndex = tempprofile.find(edge)
+            profLen = tempprofile.count
+            for i in range(startIndex+1,profLen):
+                curEdge = tempprofile.item(i)
+                if curEdge in edges and not curEdge in firstLoopArr:
+                    firstLoopArr.append(curEdge)
+            for i in range(0, startIndex-1):
+                curEdge = tempprofile.item(i)
+                if curEdge in edges and not curEdge in firstLoopArr:
+                    firstLoopArr.append(curEdge)
+        elif (firstLoopArr[0].endVertex == firstLoopArr[-1].startVertex or firstLoopArr[-1].endVertex == firstLoopArr[0].startVertex):
+            if len(secondLoopArr) == 0:
+                useSecondLoop = True
+                secondLoopArr.append(edge)
+            tempprofile = edge.tangentiallyConnectedEdges
+            startIndex = tempprofile.find(edge)
+            profLen = tempprofile.count
+            for i in range(startIndex+1,profLen):
+                curEdge = tempprofile.item(i)
+                if curEdge in edges and not curEdge in secondLoopArr:
+                    secondLoopArr.append(curEdge)
+            for i in range(0, startIndex-1):
+                curEdge = tempprofile.item(i)
+                if curEdge in edges and not curEdge in secondLoopArr:
+                    secondLoopArr.append(curEdge)
+    return useSecondLoop
+
+
 def create_color(bodies, semi: bool):
     
 
@@ -200,7 +241,7 @@ def create_color(bodies, semi: bool):
         for i in range(faces.count):
             face = faces.item(i)
             cylinderface = adsk.core.Cylinder.cast(face.geometry)
-            if cylinderface:
+            if cylinderface and continuous_edges(face.edges):
                 res, origin, axis, radius = cylinderface.getData()
                 holes.append([j, i, radius, origin.x, origin.y, origin.z, axis.x, axis.y, axis.z])
                 fiq.append(face)
