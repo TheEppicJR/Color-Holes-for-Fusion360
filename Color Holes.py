@@ -44,6 +44,13 @@ def run(context):
         onCommandCreated = CHCreateCommandCreatedHandler()
         colorHoleCreateCmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
+        try:
+            onActiveSelectionChanged = ArgSelectHandler()
+            _ui.activeSelectionChanged.add(onActiveSelectionChanged)
+            _handlers.append(onActiveSelectionChanged)
+        except:
+            _ui.messageBox('Hover over creation failed:\n{}'.format(traceback.format_exc()))
+
         
 
     except:
@@ -68,6 +75,25 @@ def stop(context):
         if _ui:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+
+class ArgSelectHandler(adsk.core.ActiveSelectionEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            eventArgs = adsk.core.ActiveSelectionEventArgs.cast(args)
+            sels = eventArgs.currentSelection
+            if len(sels) == 1:
+                ent: adsk.fusion.BRepFace = sels[0].entity
+                cylinderface = adsk.core.Cylinder.cast(ent.geometry)
+                if cylinderface and continuous_edges(ent.edges):
+                    app = ent.appearance
+                    apptxt = app.name
+                    if apptxt.__contains__("CH_"):
+                        _ui.messageBox(apptxt[3:].replace(" or ", "\nor\n"), "Hole Information")
+
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 class CHCreateCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def __init__(self):
@@ -231,7 +257,6 @@ def continuous_edges(edges):
 
 
 def create_color(bodies, semi: bool):
-    
 
     holes = []
     fiq = []
