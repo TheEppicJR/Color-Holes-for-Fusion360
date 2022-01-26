@@ -1,20 +1,35 @@
 #Author-Ian Rist
 #Description-Color holes by their size
 
-from os import name
+import os
 from random import random
+from pathlib import Path
 import adsk.core, adsk.fusion, adsk.cam, traceback
 import math
+import csv
 
 _app: adsk.core.Application = None
 _ui: adsk.core.UserInterface = None
 _handlers = []
+_holes: list = None
+
+
+def loadHoles():
+    tmplist = []
+    holepath = os.path.join(Path(__file__).resolve().parent, 'HoleSizes.csv')
+    with open(holepath, newline='') as csvfile:
+        csvreader = csv.reader(csvfile)
+        header = next(csvreader)
+        for row in csvreader:
+            tmplist.append(row)
+    return tmplist
 
 def run(context):
     try:
-        global _app, _ui
+        global _app, _ui, _holes
         _app = adsk.core.Application.get()
         _ui  = _app.userInterface
+        _holes = loadHoles()
 
         # Create the command definition for the feature create.
         colorHoleCreateCmdDef = _ui.commandDefinitions.addButtonDefinition('irColorHoles', 'Color Holes', 'Color Holes based on DIA', 'Resources/Button')
@@ -29,6 +44,7 @@ def run(context):
         onCommandCreated = CHCreateCommandCreatedHandler()
         colorHoleCreateCmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
+        
 
     except:
         if _ui:
@@ -133,7 +149,7 @@ class rgbCl:
         self.o = o
         self.n = n
         self.rgb = f"{r}-{g}-{b}-{o}"
-        self.name = f"CH_{self.n}_{self.rgb}"
+        self.name = f"CH_{self.n}"
 
 
 def mk_color(rgb: rgbCl):
@@ -164,7 +180,18 @@ def mk_color(rgb: rgbCl):
 def trt_str(rad):
     return str(round(rad, 6))
 
+def findNear(rad):
+    posSizes = []
+    for row in _holes:
+        dif = abs(float(row[1]) - rad*20) # multiply by 2 to get dia then mult by 10 to get from cm to mm
+        #_ui.messageBox(f"Hole Size: {rad}\nCompaired Size: {row[1]}\nDif: {dif}")
+        if dif < 0.00011:
+            posSizes.append(row[0])
+    return posSizes
+
 def create_color(bodies, semi: bool):
+    
+
     holes = []
     fiq = []
     for j in range(0, bodies.selectionCount):
@@ -177,18 +204,26 @@ def create_color(bodies, semi: bool):
                 res, origin, axis, radius = cylinderface.getData()
                 holes.append([j, i, radius, origin.x, origin.y, origin.z, axis.x, axis.y, axis.z])
                 fiq.append(face)
-                # _ui.messageBox('origin: ({}, {}, {}), axis: ({}, {}, {}), radius: {}'.format(origin.x, origin.y, origin.z, axis.x, axis.y, axis.z, radius))
     sizes = {}
+
     for hole in holes:
         if trt_str(hole[2]) not in sizes.keys():
-            sizes[trt_str(hole[2])] = [int(random()*255), int(random()*255), int(random()*255)] 
+            posSize = findNear(hole[2])
+            if len(posSize) == 0:
+                name = trt_str(hole[2])
+            elif len(posSize) == 1:
+                name = posSize[0]
+            else:
+                name = posSize[0]
+                for n in posSize[1:]:
+                    name = f"{name} or {n}"
+            sizes[trt_str(hole[2])] = rgbCl(int(random()*255), int(random()*255), int(random()*255), 0, name) 
     
     for face in fiq:
         cylinderface = adsk.core.Cylinder.cast(face.geometry)
         if cylinderface:
             res, origin, axis, radius = cylinderface.getData()
-            rgb = sizes[trt_str(radius)]
-            color = rgbCl(rgb[0], rgb[1], rgb[2], 0, trt_str(radius))
+            color = sizes[trt_str(radius)]
             app = mk_color(color)
             face.appearance = app
 
