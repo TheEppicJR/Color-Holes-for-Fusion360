@@ -33,6 +33,7 @@ def run(context):
 
         # Create the command definition for the feature create.
         colorHoleCreateCmdDef = _ui.commandDefinitions.addButtonDefinition('irColorHoles', 'Color Holes', 'Color Holes based on DIA', 'Resources/Button')
+        importSTEPCreateCmdDef = _ui.commandDefinitions.addButtonDefinition('irimpSTEP', 'Import STEP with PMI', 'Import STEP with PMI', 'Resources/Button')
 
         # Add the create button the user interface.
         createPanel = _ui.allToolbarPanels.itemById('InspectPanel')
@@ -40,10 +41,20 @@ def run(context):
         cntrl.isPromoted = True
         cntrl.isPromotedByDefault = False
 
+        utilPanel = _ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
+        util: adsk.core.CommandControl = utilPanel.controls.addCommand(importSTEPCreateCmdDef, 'Scripts and Add-Ins...', False)
+        util.isPromoted = True
+        util.isPromotedByDefault = False
+
         # Connect the handler to the command created event for the clean create.
         onCommandCreated = CHCreateCommandCreatedHandler()
         colorHoleCreateCmdDef.commandCreated.add(onCommandCreated)
         _handlers.append(onCommandCreated)
+
+        onICommandCreated = ISCreateCommandCreatedHandler()
+        importSTEPCreateCmdDef.commandCreated.add(onICommandCreated)
+        _handlers.append(onICommandCreated)
+
         try:
             onActiveSelectionChanged = ArgSelectHandler()
             _ui.activeSelectionChanged.add(onActiveSelectionChanged)
@@ -63,18 +74,39 @@ def stop(context):
         _app = adsk.core.Application.get()
         _ui: adsk.core.UserInterface  = _app.userInterface
         createPanel = _ui.allToolbarPanels.itemById('InspectPanel')
+        createIPanel = _ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
         cmdCntrl = createPanel.controls.itemById('irColorHoles')
+        cmdICntrl = createPanel.controls.itemById('irimpSTEP')
         if cmdCntrl:
             cmdCntrl.deleteMe()
+        
+        if cmdICntrl:
+            cmdICntrl.deleteMe()
 
         colorHoleCreateCmdDef = _ui.commandDefinitions.itemById('irColorHoles')
         if colorHoleCreateCmdDef:
             colorHoleCreateCmdDef.deleteMe()
 
+        importSTEPCreateCmdDef = _ui.commandDefinitions.itemById('irimpSTEP')
+        if importSTEPCreateCmdDef:
+            importSTEPCreateCmdDef.deleteMe()
+
     except:
         if _ui:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+def selectSTEP():
+    fileDialog = _ui.createFileDialog()
+    fileDialog.isMultiSelectEnabled = False
+    fileDialog.title = "Select STEP File"
+    fileDialog.filter = 'STEP Files (*.ste *.step*.stp)'
+    fileDialog.filterIndex = 0
+    dialogResult = fileDialog.showOpen()
+    if dialogResult == adsk.core.DialogResults.DialogOK:
+        return fileDialog.filename
+    else:
+        return
+    
 
 class ArgSelectHandler(adsk.core.ActiveSelectionEventHandler):
     def __init__(self):
@@ -91,6 +123,33 @@ class ArgSelectHandler(adsk.core.ActiveSelectionEventHandler):
                     apptxt = app.name
                     if apptxt.__contains__("CH_"):
                         _ui.messageBox(apptxt[3:].replace(" or ", "\nor\n"), "Hole Information")
+
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+class ISCreateCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            eventArgs = adsk.core.CommandCreatedEventArgs.cast(args)
+            des: adsk.fusion.Design = _app.activeProduct
+            cmd = eventArgs.command
+            inputs = cmd.commandInputs
+
+            selCmd = inputs.addBoolValueInput('sel', 'Select File', False, "", True)
+            filenameCmd = inputs.addTextBoxCommandInput('filename', '')
+            fnCmd = inputs.addTextBoxCommandInput('fn', '')
+            fnCmd.isVisible = False
+            previewCmd = inputs.addBoolValueInput('preview', 'Preview Selection', True, "", True)
+
+            onInputChanged = CreateInputChangedHandler()
+            cmd.inputChanged.add(onInputChanged)
+            _handlers.append(onInputChanged)
+
+            onExecute = IPCreateExecuteHandler()
+            cmd.execute.add(onExecute)
+            _handlers.append(onExecute)
 
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
@@ -125,6 +184,26 @@ class CHCreateCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
+class CreateInputChangedHandler(adsk.core.InputChangedEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            eventArgs = adsk.core.InputChangedEventArgs.cast(args)
+            inputs = eventArgs.inputs
+            cmdInput = eventArgs.input
+
+            if cmdInput.id == "sel":
+                filename = selectSTEP()
+                filenameSel: adsk.core.TextBoxCommandInput = inputs.itemById('filename')
+                fnSel: adsk.core.TextBoxCommandInput = inputs.itemById('fn')
+                filenameSel.text = filename
+                fnSel.text = filename
+                _ui.messageBox(f"{filename}")
+
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 class CreateExecutePreviewHandler(adsk.core.CommandEventHandler):
     def __init__(self):
         super().__init__()
@@ -142,6 +221,26 @@ class CreateExecutePreviewHandler(adsk.core.CommandEventHandler):
             if previewInput.value == True:
                 # Color them in
                 create_color(bodiesSel, semiInput.value)
+
+        except:
+            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+class IPCreateExecuteHandler(adsk.core.CommandEventHandler):
+    def __init__(self):
+        super().__init__()
+    def notify(self, args):
+        try:
+            eventArgs = adsk.core.CommandEventArgs.cast(args)
+            cmd = eventArgs.command
+            inputs = cmd.commandInputs
+
+            # Get the inputs.
+            bodiesSel: adsk.core.SelectionCommandInput = inputs.itemById('bodies')
+            semiInput: adsk.core.BoolValueCommandInput = inputs.itemById('semi')
+            previewInput: adsk.core.BoolValueCommandInput = inputs.itemById('preview')
+
+            # Color them in
+            create_color(bodiesSel, semiInput.value)
 
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
