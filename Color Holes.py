@@ -279,7 +279,7 @@ def create_color(bodies, semi: bool):
         if trt_str(hole[2]) not in sizes.keys():
             posSize = findNear(hole[2])
             if len(posSize) == 0:
-                name = f"D{trt_str(hole[2]*10)*2}"
+                name = f"D{trt_str(hole[2]*20)}"
             elif len(posSize) == 1:
                 name = posSize[0]
             else:
