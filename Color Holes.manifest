@@ -1,0 +1,13 @@
+{
+	"autodeskProduct":	"Fusion360",
+	"type":	"addin",
+	"id":	"da083e0a-7716-4320-847f-cbec841e3434",
+	"author":	"Ian Rist",
+	"description":	{
+		"":	"Color holes by their size"
+	},
+	"version":	"0.1",
+	"runOnStartup":	false,
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
